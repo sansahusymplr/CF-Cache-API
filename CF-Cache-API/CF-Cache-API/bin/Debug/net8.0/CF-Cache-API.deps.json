@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "CF-Cache-API/1.0.0": {
+        "runtime": {
+          "CF-Cache-API.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "CF-Cache-API/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
