@@ -85,8 +85,8 @@ public class EmployeeService
         var employees = new List<Employee>();
         var random = new Random(42);
 
-        // Generate 150 employees for tenant-customer1
-        for (int i = 1; i <= 150; i++)
+        // Generate 300 employees for tenant-customer1
+        for (int i = 1; i <= 300; i++)
         {
             employees.Add(new Employee
             {
@@ -99,9 +99,9 @@ public class EmployeeService
             });
         }
 
-        // Generate 150 employees for tenant-customer2 (using same seed for some overlap in data patterns)
-        var random2 = new Random(42);
-        for (int i = 151; i <= 300; i++)
+        // Generate 300 employees for tenant-customer2 with different seed
+        var random2 = new Random(100);
+        for (int i = 301; i <= 600; i++)
         {
             employees.Add(new Employee
             {
@@ -111,6 +111,21 @@ public class EmployeeService
                 CompanyName = companies[random2.Next(companies.Length)],
                 Position = positions[random2.Next(positions.Length)],
                 TenantId = "tenant-customer2"
+            });
+        }
+
+        // Generate 300 employees for tenant-customer3 with different seed
+        var random3 = new Random(200);
+        for (int i = 601; i <= 900; i++)
+        {
+            employees.Add(new Employee
+            {
+                Id = i,
+                FirstName = firstNames[random3.Next(firstNames.Length)],
+                LastName = lastNames[random3.Next(lastNames.Length)],
+                CompanyName = companies[random3.Next(companies.Length)],
+                Position = positions[random3.Next(positions.Length)],
+                TenantId = "tenant-customer3"
             });
         }
 

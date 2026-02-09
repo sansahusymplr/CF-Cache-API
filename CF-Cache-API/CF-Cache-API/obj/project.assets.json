@@ -15,11 +15,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\sansahu\\source\\POC\\CF-Cache-API\\CF-Cache-API\\CF-Cache-API\\CF-Cache-API.csproj",
+      "projectUniqueName": "c:\\Users\\sansahu\\source\\POC\\CF-Cache-API\\CF-Cache-API\\CF-Cache-API\\CF-Cache-API.csproj",
       "projectName": "CF-Cache-API",
-      "projectPath": "C:\\Users\\sansahu\\source\\POC\\CF-Cache-API\\CF-Cache-API\\CF-Cache-API\\CF-Cache-API.csproj",
+      "projectPath": "c:\\Users\\sansahu\\source\\POC\\CF-Cache-API\\CF-Cache-API\\CF-Cache-API\\CF-Cache-API.csproj",
       "packagesPath": "C:\\Users\\sansahu\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\sansahu\\source\\POC\\CF-Cache-API\\CF-Cache-API\\CF-Cache-API\\obj\\",
+      "outputPath": "c:\\Users\\sansahu\\source\\POC\\CF-Cache-API\\CF-Cache-API\\CF-Cache-API\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

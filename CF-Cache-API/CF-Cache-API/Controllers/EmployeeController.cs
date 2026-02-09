@@ -15,7 +15,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpGet]
-    public IActionResult GetAll([FromHeader(Name = "X-Tenant-Id")] string tenantId, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+    public IActionResult GetAll([FromHeader(Name = "X-Tenant-Id")] string tenantId, [FromQuery] int page = 1, [FromQuery] int pageSize = 200)
     {
         if (string.IsNullOrEmpty(tenantId))
             return BadRequest(new { message = "X-Tenant-Id header is required" });
