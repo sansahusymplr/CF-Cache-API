@@ -1,15 +1,37 @@
 {
   "runtimeTarget": {
-    "name": ".NETCoreApp,Version=v10.0/linux-x64",
+    "name": ".NETCoreApp,Version=v8.0/linux-x64",
     "signature": ""
   },
   "compilationOptions": {},
   "targets": {
-    ".NETCoreApp,Version=v10.0": {},
-    ".NETCoreApp,Version=v10.0/linux-x64": {
+    ".NETCoreApp,Version=v8.0": {},
+    ".NETCoreApp,Version=v8.0/linux-x64": {
       "CF-Cache-API/1.0.0": {
+        "dependencies": {
+          "AWSSDK.SecretsManager": "3.7.400.9"
+        },
         "runtime": {
           "CF-Cache-API.dll": {}
+        }
+      },
+      "AWSSDK.Core/3.7.400.9": {
+        "runtime": {
+          "lib/net8.0/AWSSDK.Core.dll": {
+            "assemblyVersion": "3.3.0.0",
+            "fileVersion": "3.7.400.9"
+          }
+        }
+      },
+      "AWSSDK.SecretsManager/3.7.400.9": {
+        "dependencies": {
+          "AWSSDK.Core": "3.7.400.9"
+        },
+        "runtime": {
+          "lib/net8.0/AWSSDK.SecretsManager.dll": {
+            "assemblyVersion": "3.3.0.0",
+            "fileVersion": "3.7.400.9"
+          }
         }
       }
     }
@@ -19,6 +41,20 @@
       "type": "project",
       "serviceable": false,
       "sha512": ""
+    },
+    "AWSSDK.Core/3.7.400.9": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-I5hCZ6IfEk/KDzyCOY6VDC4jPABEDbLKGAVQYbK1NKOnwga5LtLc3t6s0pwWoLno4MN5OrzGTgecoBcSW/tAJQ==",
+      "path": "awssdk.core/3.7.400.9",
+      "hashPath": "awssdk.core.3.7.400.9.nupkg.sha512"
+    },
+    "AWSSDK.SecretsManager/3.7.400.9": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-eQj7Nvq7JZPOarurhlKzQEUAo9WdJeJZcxb37rCH+Hng+uMrSTZM12QZfeGA1D09a4cXfd3GOq0YYPmCx0911Q==",
+      "path": "awssdk.secretsmanager/3.7.400.9",
+      "hashPath": "awssdk.secretsmanager.3.7.400.9.nupkg.sha512"
     }
   }
 }

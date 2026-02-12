@@ -32,9 +32,21 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddSingleton<EmployeeService>();
 builder.Services.AddSingleton<UserService>();
+builder.Services.AddSingleton<SecretsService>();
+builder.Services.AddSingleton<TenantCtxService>();
+builder.Services.AddSingleton<CloudFrontService>();
 builder.Services.AddControllers();
 
 var app = builder.Build();
+
+// Log incoming requests
+app.Use(async (context, next) =>
+{
+    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("Request: {Method} {Path}", context.Request.Method, context.Request.Path);
+    logger.LogInformation("Headers: {Headers}", string.Join(", ", context.Request.Headers.Select(h => $"{h.Key}={h.Value}")));
+    await next();
+});
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

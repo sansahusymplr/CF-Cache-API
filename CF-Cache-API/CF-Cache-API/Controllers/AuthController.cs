@@ -8,14 +8,16 @@ namespace CF_Cache_API.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly UserService _userService;
+    private readonly TenantCtxService _tenantCtxService;
 
-    public AuthController(UserService userService)
+    public AuthController(UserService userService, TenantCtxService tenantCtxService)
     {
         _userService = userService;
+        _tenantCtxService = tenantCtxService;
     }
 
     [HttpPost("login")]
-    public IActionResult Login([FromBody] LoginRequest request)
+    public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var user = _userService.Authenticate(request.Email, request.Password);
         
@@ -24,12 +26,41 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Invalid email or password" });
         }
 
+        // Mint signed TenantCtx cookie
+        var tenantCtxValue = await _tenantCtxService.MintTenantCtxAsync(user.TenantId, ttlMinutes: 60);
+        
+        var domain = Request.Host.Host;
+        
+        Response.Cookies.Append("TenantCtx", tenantCtxValue, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.None,
+            Path = "/",
+            Domain = domain.Contains("cloudfront.net") ? domain : null,
+            Expires = DateTimeOffset.UtcNow.AddMinutes(60)
+        });
+
         return Ok(new 
         { 
             email = user.Email, 
             tenantId = user.TenantId,
             message = "Login successful"
         });
+    }
+
+    [HttpPost("logout")]
+    public IActionResult Logout()
+    {
+        var domain = Request.Host.Host;
+        
+        Response.Cookies.Delete("TenantCtx", new CookieOptions
+        {
+            Path = "/",
+            Domain = domain.Contains("cloudfront.net") ? domain : null
+        });
+        
+        return Ok(new { message = "Logged out successfully" });
     }
 
     [HttpGet("users")]

@@ -1,2 +1,0 @@
-c:\Users\sansahu\source\POC\CF-Cache-API\CF-Cache-API\CF-Cache-API\bin\Debug\net10.0\CF-Cache-API.exe
-c:\Users\sansahu\source\POC\CF-Cache-API\CF-Cache-API\CF-Cache-API\bin\Debug\net10.0\CF-Cache-API.dll

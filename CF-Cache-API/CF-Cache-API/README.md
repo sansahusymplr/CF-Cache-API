@@ -20,17 +20,21 @@ Multi-tenant .NET 8 API with CloudFront caching support, deployed on AWS EC2.
 ## API Endpoints
 
 ### Authentication
-- `POST /api/auth/login` - User login
+- `POST /api/auth/login` - User login (sets TenantCtx cookie)
+- `POST /api/auth/logout` - User logout (deletes TenantCtx cookie)
 - `GET /api/auth/users` - Get all users
 
 ### Employee Management (Requires X-Tenant-Id header)
-- `GET /api/employee` - Get all employees (paginated)
-- `GET /api/employee/search` - Search employees
+- `GET /api/employee` - Get all employees (paginated, 200/page)
+- `GET /api/employee/{id}` - Get employee by ID
+- `GET /api/employee/search` - Search employees (firstName, lastName, companyName, position, department)
 - `GET /api/employee/by-firstname` - Search by first name
 - `GET /api/employee/by-lastname` - Search by last name
 - `GET /api/employee/by-company` - Search by company
 - `GET /api/employee/by-position` - Search by position
+- `GET /api/employee/{tenantId}/by-department` - Search by department with tenantId in path
 - `POST /api/employee` - Add new employee
+- `PUT /api/employee/{id}` - Update employee (auto-invalidates CloudFront cache)
 
 ## User Credentials
 
@@ -125,21 +129,21 @@ sudo iptables -t nat -A OUTPUT -p tcp -d 127.0.0.1 --dport 80 -j REDIRECT --to-p
 
 After making code changes:
 
-1. **Publish locally**
+1. **Publish and package**
 ```bash
 dotnet publish -c Release -r linux-x64 --self-contained false -o ./publish
+cd publish
+tar -czf ../deploy.tar.gz *
+cd ..
 ```
 
-2. **Copy to EC2**
+2. **Deploy to EC2**
 ```bash
-scp -i your-key.pem -r ./publish/* ec2-user@YOUR-EC2-IP:/var/www/cf-cache-api/
+scp -i C:\Users\sansahu\Downloads\sansahu-pdm-poc-payer-migration.pem deploy.tar.gz ec2-user@3.135.65.0:/tmp/
+ssh -i C:\Users\sansahu\Downloads\sansahu-pdm-poc-payer-migration.pem ec2-user@3.135.65.0 "cd /var/www/cf-cache-api && tar -xzf /tmp/deploy.tar.gz && sudo systemctl restart cf-cache-api"
 ```
 
-3. **Restart service on EC2**
-```bash
-ssh -i your-key.pem ec2-user@YOUR-EC2-IP
-sudo systemctl restart cf-cache-api
-```
+**Note**: Always deploy the complete publish folder to ensure all dependencies are included.
 
 ### EC2 Management Commands
 
@@ -190,6 +194,131 @@ curl http://YOUR-EC2-IP/api/auth/users
 - `X-Tenant-Id` (required for employee endpoints)
 - `Content-Type`
 - `Authorization` (if implementing)
+
+### Lambda@Edge Configuration
+
+**Function**: Cookie validation and tenant header injection
+
+**Runtime**: Node.js 24.x  
+**Handler**: `index.handler`  
+**Trigger**: Viewer Request  
+**Region**: us-east-1 (required for Lambda@Edge)
+
+**Code** (index.js):
+```javascript
+'use strict';
+
+const crypto = require('crypto');
+
+// Embedded Base64 HMAC key (Lambda@Edge can't use env vars)
+const TENANTCTX_HMAC_KEY_B64 = 'djVtWOIBk15RZt9awSd6NmM3Yogk5qEXfU5QF6B8SRc=';
+const secretBytes = Buffer.from(TENANTCTX_HMAC_KEY_B64, 'base64');
+
+// Only apply TenantCtx validation for /api/employee/*
+const ENFORCE_PREFIXES = ['/api/employee/'];
+
+exports.handler = async (event) => {
+  const request = event?.Records?.[0]?.cf?.request;
+  if (!request) {
+    return { status: '400', statusDescription: 'Not a CloudFront (Lambda@Edge) event' };
+  }
+
+  const uri = request.uri || '';
+  const headers = request.headers || {};
+
+  // Only enforce on /api/employee/*
+  if (ENFORCE_PREFIXES.length > 0 && !ENFORCE_PREFIXES.some(p => uri.startsWith(p))) {
+    return request;
+  }
+
+  const cookieHeaders = headers.cookie;
+
+  // Debug logs
+  const cookieHeader = cookieHeaders?.map(h => h.value).join('; ') || '';
+  console.log('URI:', uri);
+  console.log('Cookie header:', cookieHeader || '(none)');
+
+  // If cookie header missing, bypass
+  if (!cookieHeaders || cookieHeaders.length === 0) {
+    return request;
+  }
+
+  const token = parseCookie(cookieHeader, 'TenantCtx');
+
+  // If TenantCtx missing, bypass
+  if (!token) {
+    console.log('TenantCtx cookie not present, passing through');
+    return request;
+  }
+
+  const parts = token.split('.');
+  if (parts.length !== 2) return deny(401, 'Invalid Format');
+
+  const payloadB64 = parts[0];
+  const sigB64 = parts[1];
+
+  const expectedSig = crypto
+    .createHmac('sha256', secretBytes)
+    .update(payloadB64, 'utf8')
+    .digest();
+
+  const providedSig = base64UrlDecodeToBuffer(sigB64);
+
+  if (providedSig.length !== expectedSig.length) return deny(401, 'Invalid Signature');
+  if (!crypto.timingSafeEqual(expectedSig, providedSig)) return deny(401, 'Invalid Signature');
+
+  let payload;
+  try {
+    const payloadJson = base64UrlDecodeToBuffer(payloadB64).toString('utf8');
+    payload = JSON.parse(payloadJson);
+  } catch {
+    return deny(401, 'Invalid Payload');
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  if (!payload?.tid || !payload?.exp || payload.exp < now) return deny(401, 'Expired');
+
+  // Inject tenant header for origin
+  request.headers['x-tenant-id'] = [{ key: 'X-Tenant-Id', value: String(payload.tid) }];
+  return request;
+};
+
+function base64UrlDecodeToBuffer(input) {
+  let b64 = input.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = b64.length % 4;
+  if (pad === 2) b64 += '==';
+  else if (pad === 3) b64 += '=';
+  return Buffer.from(b64, 'base64');
+}
+
+function parseCookie(cookieHeader, name) {
+  for (const part of cookieHeader.split(';')) {
+    const t = part.trim();
+    const eq = t.indexOf('=');
+    if (eq === -1) continue;
+    const k = t.slice(0, eq).trim();
+    const v = t.slice(eq + 1).trim();
+    if (k === name) return v;
+  }
+  return null;
+}
+
+function deny(statusCode, message) {
+  return {
+    status: String(statusCode),
+    statusDescription: message,
+    headers: {
+      'cache-control': [{ key: 'Cache-Control', value: 'no-store' }]
+    }
+  };
+}
+```
+
+**Deployment**:
+1. Create Lambda function in us-east-1
+2. Copy code above to index.js
+3. Associate with CloudFront distribution as Viewer Request trigger
+4. Check CloudWatch Logs (regional) for debugging
 
 ## Data Structure
 

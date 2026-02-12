@@ -57,6 +57,18 @@ public class EmployeeService
         return (query.Skip((page - 1) * pageSize).Take(pageSize), query.Count());
     }
 
+    public (IEnumerable<Employee>, int) SearchByDepartment(string tenantId, string? firstName, string? department, int page = 1, int pageSize = 50)
+    {
+        var query = _employees.Where(e => e.TenantId == tenantId).AsEnumerable();
+
+        if (!string.IsNullOrEmpty(firstName))
+            query = query.Where(e => e.FirstName.Contains(firstName, StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrEmpty(department))
+            query = query.Where(e => e.Department.Contains(department, StringComparison.OrdinalIgnoreCase));
+
+        return (query.Skip((page - 1) * pageSize).Take(pageSize), query.Count());
+    }
+
     public int GetTotalCount(string tenantId) => _employees.Count(e => e.TenantId == tenantId);
 
     public Employee AddEmployee(string tenantId, string firstName, string lastName, string companyName, string position)
@@ -75,12 +87,26 @@ public class EmployeeService
         return employee;
     }
 
+    public Employee? UpdateEmployee(string tenantId, int id, string firstName, string lastName, string companyName, string position, string department)
+    {
+        var employee = _employees.FirstOrDefault(e => e.Id == id && e.TenantId == tenantId);
+        if (employee == null) return null;
+
+        employee.FirstName = firstName;
+        employee.LastName = lastName;
+        employee.CompanyName = companyName;
+        employee.Position = position;
+        employee.Department = department;
+        return employee;
+    }
+
     private List<Employee> GenerateEmployees()
     {
         var firstNames = new[] { "John", "Jane", "Michael", "Sarah", "David", "Emily", "Robert", "Lisa", "James", "Mary", "Santosh" };
         var lastNames = new[] { "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez" };
         var companies = new[] { "TechCorp", "InnovateLabs", "DataSystems", "CloudWorks", "SoftSolutions", "DigitalHub", "CodeFactory", "NetServices", "InfoTech", "WebDynamics" };
         var positions = new[] { "Software Engineer", "Senior Developer", "Project Manager", "Team Lead", "Architect", "QA Engineer", "DevOps Engineer", "Product Manager", "Scrum Master", "Business Analyst" };
+        var departments = new[] { "Engineering", "Sales", "Marketing", "HR", "Finance", "Operations", "IT", "Support", "Research", "Legal" };
 
         var employees = new List<Employee>();
         var random = new Random(42);
@@ -95,6 +121,7 @@ public class EmployeeService
                 LastName = lastNames[random.Next(lastNames.Length)],
                 CompanyName = companies[random.Next(companies.Length)],
                 Position = positions[random.Next(positions.Length)],
+                Department = departments[random.Next(departments.Length)],
                 TenantId = "tenant-customer1"
             });
         }
@@ -110,6 +137,7 @@ public class EmployeeService
                 LastName = lastNames[random2.Next(lastNames.Length)],
                 CompanyName = companies[random2.Next(companies.Length)],
                 Position = positions[random2.Next(positions.Length)],
+                Department = departments[random2.Next(departments.Length)],
                 TenantId = "tenant-customer2"
             });
         }
@@ -125,6 +153,7 @@ public class EmployeeService
                 LastName = lastNames[random3.Next(lastNames.Length)],
                 CompanyName = companies[random3.Next(companies.Length)],
                 Position = positions[random3.Next(positions.Length)],
+                Department = departments[random3.Next(departments.Length)],
                 TenantId = "tenant-customer3"
             });
         }

@@ -49,6 +49,16 @@
       "frameworks": {
         "net8.0": {
           "targetAlias": "net8.0",
+          "dependencies": {
+            "AWSSDK.CloudFront": {
+              "target": "Package",
+              "version": "[3.7.400.9, )"
+            },
+            "AWSSDK.SecretsManager": {
+              "target": "Package",
+              "version": "[3.7.400.9, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",

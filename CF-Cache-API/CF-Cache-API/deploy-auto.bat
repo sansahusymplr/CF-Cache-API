@@ -5,8 +5,8 @@ echo ========================================
 echo.
 
 REM Configuration
-set EC2_IP=YOUR-EC2-IP
-set KEY_FILE=path/to/your-key.pem
+set EC2_IP=3.135.65.0
+set KEY_FILE=C:\Users\sansahu\Downloads\sansahu-pdm-poc-payer-migration.pem
 
 echo Step 1: Publishing application...
 dotnet publish -c Release -r linux-x64 --self-contained false -o ./publish

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CF-Cache-API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+eba92583e004279cf8935297fd7fec81c5312f3b")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1016e2e53af8c540ef7afa3e3bbd424d11aa4f00")]
 [assembly: System.Reflection.AssemblyProductAttribute("CF-Cache-API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CF-Cache-API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

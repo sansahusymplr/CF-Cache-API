@@ -7,5 +7,6 @@ public class Employee
     public string LastName { get; set; } = string.Empty;
     public string CompanyName { get; set; } = string.Empty;
     public string Position { get; set; } = string.Empty;
+    public string Department { get; set; } = string.Empty;
     public string TenantId { get; set; } = string.Empty;
 }
