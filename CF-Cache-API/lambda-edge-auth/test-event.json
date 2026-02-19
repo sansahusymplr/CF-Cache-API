@@ -1,0 +1,20 @@
+{
+  "Records": [
+    {
+      "cf": {
+        "request": {
+          "uri": "/api/employee",
+          "method": "GET",
+          "headers": {
+            "cookie": [
+              {
+                "key": "Cookie",
+                "value": "TenantCtx=eyJ0aWQiOiJ0ZW5hbnQtY3VzdG9tZXIxIiwiZXhwIjoxNzM5MTk5MDAwfQ.abc123"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

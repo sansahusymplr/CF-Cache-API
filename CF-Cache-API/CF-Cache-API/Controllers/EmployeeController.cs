@@ -16,11 +16,13 @@ public class EmployeeController : ControllerBase
         _cloudFrontService = cloudFrontService;
     }
 
-    [HttpGet]
-    public IActionResult GetAll([FromHeader(Name = "X-Tenant-Id")] string tenantId, [FromQuery] int page = 1, [FromQuery] int pageSize = 200)
+    [HttpGet("{tenantId}")]
+    public IActionResult GetAll([FromRoute] string tenantId, [FromHeader(Name = "X-Tenant-Id")] string headerTenantId, [FromQuery] int page = 1, [FromQuery] int pageSize = 200)
     {
-        if (string.IsNullOrEmpty(tenantId))
+        if (string.IsNullOrEmpty(headerTenantId))
             return BadRequest(new { message = "X-Tenant-Id header is required" });
+        if (tenantId != headerTenantId)
+            return BadRequest(new { message = "Path tenantId must match X-Tenant-Id header" });
 
         var employees = _employeeService.GetAll(tenantId, page, pageSize);
         var total = _employeeService.GetTotalCount(tenantId);
@@ -28,11 +30,13 @@ public class EmployeeController : ControllerBase
         return Ok(new { data = employees, total, totalPages, page, pageSize });
     }
 
-    [HttpGet("{id}")]
-    public IActionResult GetById([FromHeader(Name = "X-Tenant-Id")] string tenantId, [FromRoute] int id)
+    [HttpGet("{tenantId}/{id}")]
+    public IActionResult GetById([FromRoute] string tenantId, [FromHeader(Name = "X-Tenant-Id")] string headerTenantId, [FromRoute] int id)
     {
-        if (string.IsNullOrEmpty(tenantId))
+        if (string.IsNullOrEmpty(headerTenantId))
             return BadRequest(new { message = "X-Tenant-Id header is required" });
+        if (tenantId != headerTenantId)
+            return BadRequest(new { message = "Path tenantId must match X-Tenant-Id header" });
 
         var employee = _employeeService.GetAll(tenantId, 1, int.MaxValue).FirstOrDefault(e => e.Id == id);
         if (employee == null)
@@ -41,13 +45,15 @@ public class EmployeeController : ControllerBase
         return Ok(employee);
     }
 
-    [HttpGet("search")]
-    public IActionResult Search([FromHeader(Name = "X-Tenant-Id")] string tenantId, [FromQuery] string? firstName, [FromQuery] string? lastName, 
+    [HttpGet("{tenantId}/search")]
+    public IActionResult Search([FromRoute] string tenantId, [FromHeader(Name = "X-Tenant-Id")] string headerTenantId, [FromQuery] string? firstName, [FromQuery] string? lastName, 
         [FromQuery] string? companyName, [FromQuery] string? position, [FromQuery] string? department,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
-        if (string.IsNullOrEmpty(tenantId))
+        if (string.IsNullOrEmpty(headerTenantId))
             return BadRequest(new { message = "X-Tenant-Id header is required" });
+        if (tenantId != headerTenantId)
+            return BadRequest(new { message = "Path tenantId must match X-Tenant-Id header" });
 
         var query = _employeeService.GetAll(tenantId, 1, int.MaxValue).AsEnumerable();
 
@@ -68,44 +74,52 @@ public class EmployeeController : ControllerBase
         return Ok(new { data = employees, total, totalPages, page, pageSize });
     }
 
-    [HttpGet("by-firstname")]
-    public IActionResult GetByFirstName([FromHeader(Name = "X-Tenant-Id")] string tenantId, [FromQuery] string firstName, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+    [HttpGet("{tenantId}/by-firstname")]
+    public IActionResult GetByFirstName([FromRoute] string tenantId, [FromHeader(Name = "X-Tenant-Id")] string headerTenantId, [FromQuery] string firstName, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
-        if (string.IsNullOrEmpty(tenantId))
+        if (string.IsNullOrEmpty(headerTenantId))
             return BadRequest(new { message = "X-Tenant-Id header is required" });
+        if (tenantId != headerTenantId)
+            return BadRequest(new { message = "Path tenantId must match X-Tenant-Id header" });
 
         var (employees, total) = _employeeService.SearchByFirstName(tenantId, firstName, page, pageSize);
         var totalPages = (int)Math.Ceiling(total / (double)pageSize);
         return Ok(new { data = employees, total, totalPages, page, pageSize });
     }
 
-    [HttpGet("by-lastname")]
-    public IActionResult GetByLastName([FromHeader(Name = "X-Tenant-Id")] string tenantId, [FromQuery] string lastName, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+    [HttpGet("{tenantId}/by-lastname")]
+    public IActionResult GetByLastName([FromRoute] string tenantId, [FromHeader(Name = "X-Tenant-Id")] string headerTenantId, [FromQuery] string lastName, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
-        if (string.IsNullOrEmpty(tenantId))
+        if (string.IsNullOrEmpty(headerTenantId))
             return BadRequest(new { message = "X-Tenant-Id header is required" });
+        if (tenantId != headerTenantId)
+            return BadRequest(new { message = "Path tenantId must match X-Tenant-Id header" });
 
         var (employees, total) = _employeeService.SearchByLastName(tenantId, lastName, page, pageSize);
         var totalPages = (int)Math.Ceiling(total / (double)pageSize);
         return Ok(new { data = employees, total, totalPages, page, pageSize });
     }
 
-    [HttpGet("by-company")]
-    public IActionResult GetByCompany([FromHeader(Name = "X-Tenant-Id")] string tenantId, [FromQuery] string companyName, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+    [HttpGet("{tenantId}/by-company")]
+    public IActionResult GetByCompany([FromRoute] string tenantId, [FromHeader(Name = "X-Tenant-Id")] string headerTenantId, [FromQuery] string companyName, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
-        if (string.IsNullOrEmpty(tenantId))
+        if (string.IsNullOrEmpty(headerTenantId))
             return BadRequest(new { message = "X-Tenant-Id header is required" });
+        if (tenantId != headerTenantId)
+            return BadRequest(new { message = "Path tenantId must match X-Tenant-Id header" });
 
         var (employees, total) = _employeeService.SearchByCompany(tenantId, companyName, page, pageSize);
         var totalPages = (int)Math.Ceiling(total / (double)pageSize);
         return Ok(new { data = employees, total, totalPages, page, pageSize });
     }
 
-    [HttpGet("by-position")]
-    public IActionResult GetByPosition([FromHeader(Name = "X-Tenant-Id")] string tenantId, [FromQuery] string position, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+    [HttpGet("{tenantId}/by-position")]
+    public IActionResult GetByPosition([FromRoute] string tenantId, [FromHeader(Name = "X-Tenant-Id")] string headerTenantId, [FromQuery] string position, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
-        if (string.IsNullOrEmpty(tenantId))
+        if (string.IsNullOrEmpty(headerTenantId))
             return BadRequest(new { message = "X-Tenant-Id header is required" });
+        if (tenantId != headerTenantId)
+            return BadRequest(new { message = "Path tenantId must match X-Tenant-Id header" });
 
         var (employees, total) = _employeeService.SearchByPosition(tenantId, position, page, pageSize);
         var totalPages = (int)Math.Ceiling(total / (double)pageSize);
@@ -157,7 +171,7 @@ public class EmployeeController : ControllerBase
 
         try
         {
-            await _cloudFrontService.InvalidateCacheAsync(id);
+            await _cloudFrontService.InvalidateCacheAsync(id, tenantId);
         }
         catch (Exception ex)
         {

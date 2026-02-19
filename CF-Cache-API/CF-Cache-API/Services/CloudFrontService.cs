@@ -7,15 +7,14 @@ public class CloudFrontService
 {
     private readonly string _distributionId = "E1X7R3DVK2IL9";
 
-    public async Task InvalidateCacheAsync(int employeeId)
+    public async Task InvalidateCacheAsync(int employeeId, string tenantId)
     {
         var client = new AmazonCloudFrontClient(Amazon.RegionEndpoint.USEast1);
         
         var paths = new List<string>
         {
-            $"/api/employee/{employeeId}",
-            "/api/employee",
-            "/api/employee/search*"
+            $"/api/employee/{tenantId}/{employeeId}",
+            $"/api/employee/{tenantId}*"
         };
 
         var request = new CreateInvalidationRequest

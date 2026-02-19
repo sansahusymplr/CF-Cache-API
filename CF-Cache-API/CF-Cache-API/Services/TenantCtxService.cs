@@ -20,7 +20,7 @@ public class TenantCtxService
         {
             tid = tenantId,
             exp = DateTimeOffset.UtcNow.AddMinutes(ttlMinutes).ToUnixTimeSeconds(),
-            kid = "k1"
+            kid = "tenantctx_hmac_key"
         };
 
         var payloadJson = JsonSerializer.Serialize(payload);
