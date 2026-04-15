@@ -55,21 +55,23 @@ public class TenantCtxService
     {
         if (string.IsNullOrEmpty(ip)) return "";
 
-        // Derive a 256-bit AES key from the HMAC key
-        var aesKey = SHA256.HashData(hmacKey);
+        // 16-byte random nonce
+        var nonce = RandomNumberGenerator.GetBytes(16);
 
-        using var aes = Aes.Create();
-        aes.Key = aesKey;
-        aes.GenerateIV();
+        // HMAC-SHA256(key, nonce) → 32-byte keystream
+        using var hmac = new HMACSHA256(hmacKey);
+        var keystream = hmac.ComputeHash(nonce);
 
-        using var encryptor = aes.CreateEncryptor();
+        // XOR plaintext with keystream
         var plainBytes = Encoding.UTF8.GetBytes(ip);
-        var cipherBytes = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
+        var cipherBytes = new byte[plainBytes.Length];
+        for (int i = 0; i < plainBytes.Length; i++)
+            cipherBytes[i] = (byte)(plainBytes[i] ^ keystream[i % keystream.Length]);
 
-        // IV + ciphertext → base64url
-        var result = new byte[aes.IV.Length + cipherBytes.Length];
-        aes.IV.CopyTo(result, 0);
-        cipherBytes.CopyTo(result, aes.IV.Length);
+        // nonce + cipher → base64url
+        var result = new byte[nonce.Length + cipherBytes.Length];
+        nonce.CopyTo(result, 0);
+        cipherBytes.CopyTo(result, nonce.Length);
         return Base64UrlEncode(result);
     }
 }

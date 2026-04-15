@@ -161,21 +161,23 @@ namespace LambdaEdgeAuth
     {
         try
         {
-            var aesKey = SHA256.HashData(hmacKey);
             var combined = Base64UrlDecode(encryptedIp);
 
-            var iv = new byte[16];
-            var cipher = new byte[combined.Length - 16];
-            Array.Copy(combined, 0, iv, 0, 16);
-            Array.Copy(combined, 16, cipher, 0, cipher.Length);
+            var nonce = new byte[16];
+            var cipherBytes = new byte[combined.Length - 16];
+            Array.Copy(combined, 0, nonce, 0, 16);
+            Array.Copy(combined, 16, cipherBytes, 0, cipherBytes.Length);
 
-            using var aes = Aes.Create();
-            aes.Key = aesKey;
-            aes.IV = iv;
+            // Same keystream: HMAC-SHA256(key, nonce)
+            using var hmac = new HMACSHA256(hmacKey);
+            var keystream = hmac.ComputeHash(nonce);
 
-            using var decryptor = aes.CreateDecryptor();
-            var plainBytes = decryptor.TransformFinalBlock(cipher, 0, cipher.Length);
-            return Encoding.UTF8.GetString(plainBytes);
+            // XOR to recover plaintext
+            var plain = new byte[cipherBytes.Length];
+            for (int i = 0; i < cipherBytes.Length; i++)
+                plain[i] = (byte)(cipherBytes[i] ^ keystream[i % keystream.Length]);
+
+            return Encoding.UTF8.GetString(plain);
         }
         catch
         {
