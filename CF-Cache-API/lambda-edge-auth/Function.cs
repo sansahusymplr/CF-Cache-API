@@ -61,6 +61,18 @@ namespace LambdaEdgeAuth
         if (payload == null || payload.Exp < DateTimeOffset.UtcNow.ToUnixTimeSeconds())
             return Deny(401, "Expired");
 
+        // Validate encrypted IP against request's X-Forwarded-For
+        if (!string.IsNullOrEmpty(payload.Ip))
+        {
+            var requestIp = "";
+            if (request.Headers.ContainsKey("x-forwarded-for"))
+                requestIp = request.Headers["x-forwarded-for"][0].Value.Split(',')[0].Trim();
+
+            var decryptedIp = DecryptIp(payload.Ip, secretBytes);
+            if (decryptedIp != requestIp)
+                return Deny(401, "IP Mismatch");
+        }
+
         request.Headers["x-tenant-id"] = new List<CloudFrontHeader>
         {
             new CloudFrontHeader
@@ -145,10 +157,37 @@ namespace LambdaEdgeAuth
         };
     }
 
+    private static string DecryptIp(string encryptedIp, byte[] hmacKey)
+    {
+        try
+        {
+            var aesKey = SHA256.HashData(hmacKey);
+            var combined = Base64UrlDecode(encryptedIp);
+
+            var iv = new byte[16];
+            var cipher = new byte[combined.Length - 16];
+            Array.Copy(combined, 0, iv, 0, 16);
+            Array.Copy(combined, 16, cipher, 0, cipher.Length);
+
+            using var aes = Aes.Create();
+            aes.Key = aesKey;
+            aes.IV = iv;
+
+            using var decryptor = aes.CreateDecryptor();
+            var plainBytes = decryptor.TransformFinalBlock(cipher, 0, cipher.Length);
+            return Encoding.UTF8.GetString(plainBytes);
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
         private class TenantPayload
         {
             public string Tid { get; set; }
             public string Entity { get; set; }
+            public string Ip { get; set; }
             public long Exp { get; set; }
         }
     }

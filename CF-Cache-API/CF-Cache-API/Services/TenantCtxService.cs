@@ -16,11 +16,14 @@ public class TenantCtxService
 
     public async Task<string> MintTenantCtxAsync(string tenantId, string entity = "", string clientIp = "", int ttlMinutes = 60)
     {
+        var hmacKey = await _secretsService.GetHmacKeyAsync();
+        var encryptedIp = EncryptIp(clientIp, hmacKey);
+
         var payload = new TenantCtx
         {
             tid = tenantId,
             entity = entity,
-            ip = clientIp,
+            ip = encryptedIp,
             exp = DateTimeOffset.UtcNow.AddMinutes(ttlMinutes).ToUnixTimeSeconds(),
             kid = "tenantctx_hmac_key"
         };
@@ -28,7 +31,6 @@ public class TenantCtxService
         var payloadJson = JsonSerializer.Serialize(payload);
         var payloadBase64Url = Base64UrlEncode(Encoding.UTF8.GetBytes(payloadJson));
 
-        var hmacKey = await _secretsService.GetHmacKeyAsync();
         var signature = ComputeHmacSha256(hmacKey, payloadBase64Url);
         var signatureBase64Url = Base64UrlEncode(signature);
 
@@ -47,5 +49,27 @@ public class TenantCtxService
             .TrimEnd('=')
             .Replace('+', '-')
             .Replace('/', '_');
+    }
+
+    private static string EncryptIp(string ip, byte[] hmacKey)
+    {
+        if (string.IsNullOrEmpty(ip)) return "";
+
+        // Derive a 256-bit AES key from the HMAC key
+        var aesKey = SHA256.HashData(hmacKey);
+
+        using var aes = Aes.Create();
+        aes.Key = aesKey;
+        aes.GenerateIV();
+
+        using var encryptor = aes.CreateEncryptor();
+        var plainBytes = Encoding.UTF8.GetBytes(ip);
+        var cipherBytes = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
+
+        // IV + ciphertext → base64url
+        var result = new byte[aes.IV.Length + cipherBytes.Length];
+        aes.IV.CopyTo(result, 0);
+        cipherBytes.CopyTo(result, aes.IV.Length);
+        return Base64UrlEncode(result);
     }
 }

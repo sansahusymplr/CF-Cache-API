@@ -33,7 +33,8 @@ public class AuthController : ControllerBase
 
         // Mint signed TenantCtx cookie with all user entities and client IP
         var entityCsv = string.Join(",", entities);
-        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
+        var clientIp = Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',')[0].Trim()
+                       ?? HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
         var tenantCtxValue = await _tenantCtxService.MintTenantCtxAsync(user.TenantId, entityCsv, clientIp, ttlMinutes: 60);
         
         var domain = Request.Host.Host;
