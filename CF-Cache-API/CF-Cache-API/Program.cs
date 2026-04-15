@@ -32,9 +32,11 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddSingleton<EmployeeService>();
 builder.Services.AddSingleton<UserService>();
+builder.Services.AddSingleton<UserEntityService>();
 builder.Services.AddSingleton<SecretsService>();
 builder.Services.AddSingleton<TenantCtxService>();
 builder.Services.AddSingleton<CloudFrontService>();
+builder.Services.AddSingleton<ImageService>();
 builder.Services.AddControllers();
 
 var app = builder.Build();

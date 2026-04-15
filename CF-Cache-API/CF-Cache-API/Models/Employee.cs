@@ -9,4 +9,5 @@ public class Employee
     public string Position { get; set; } = string.Empty;
     public string Department { get; set; } = string.Empty;
     public string TenantId { get; set; } = string.Empty;
+    public string Entity { get; set; } = string.Empty;
 }

@@ -11,6 +11,7 @@ public class UserService
         new User { Email = "c@customer1.com", Password = "abc", TenantId = "tenant-customer1" },
         new User { Email = "a@customer2.com", Password = "abc", TenantId = "tenant-customer2" },
         new User { Email = "b@customer2.com", Password = "abc", TenantId = "tenant-customer2" },
+        new User { Email = "a@customer3.com", Password = "abc", TenantId = "tenant-customer3" },
         new User { Email = "b@customer3.com", Password = "abc", TenantId = "tenant-customer3" }
     };
 

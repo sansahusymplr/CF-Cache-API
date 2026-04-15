@@ -9,14 +9,16 @@ public class AuthController : ControllerBase
 {
     private readonly UserService _userService;
     private readonly TenantCtxService _tenantCtxService;
+    private readonly UserEntityService _userEntityService;
 
-    public AuthController(UserService userService, TenantCtxService tenantCtxService)
+    public AuthController(UserService userService, TenantCtxService tenantCtxService, UserEntityService userEntityService)
     {
         _userService = userService;
         _tenantCtxService = tenantCtxService;
+        _userEntityService = userEntityService;
     }
 
-    [HttpPost("login")]
+    [HttpPost("upsert/login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var user = _userService.Authenticate(request.Email, request.Password);
@@ -26,8 +28,13 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Invalid email or password" });
         }
 
-        // Mint signed TenantCtx cookie
-        var tenantCtxValue = await _tenantCtxService.MintTenantCtxAsync(user.TenantId, ttlMinutes: 60);
+        // Lookup entities from user-entity mapping
+        var entities = _userEntityService.GetEntityNamesForUser(user.Email);
+
+        // Mint signed TenantCtx cookie with all user entities and client IP
+        var entityCsv = string.Join(",", entities);
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
+        var tenantCtxValue = await _tenantCtxService.MintTenantCtxAsync(user.TenantId, entityCsv, clientIp, ttlMinutes: 60);
         
         var domain = Request.Host.Host;
         
@@ -45,11 +52,12 @@ public class AuthController : ControllerBase
         { 
             email = user.Email, 
             tenantId = user.TenantId,
+            entities,
             message = "Login successful"
         });
     }
 
-    [HttpPost("logout")]
+    [HttpPost("upsert/logout")]
     public IActionResult Logout()
     {
         var domain = Request.Host.Host;
@@ -63,7 +71,7 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Logged out successfully" });
     }
 
-    [HttpGet("users")]
+    [HttpGet("search/users")]
     public IActionResult GetUsers()
     {
         var users = _userService.GetAllUsers();

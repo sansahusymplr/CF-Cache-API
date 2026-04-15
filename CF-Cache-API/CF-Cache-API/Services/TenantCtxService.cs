@@ -14,11 +14,13 @@ public class TenantCtxService
         _secretsService = secretsService;
     }
 
-    public async Task<string> MintTenantCtxAsync(string tenantId, int ttlMinutes = 60)
+    public async Task<string> MintTenantCtxAsync(string tenantId, string entity = "", string clientIp = "", int ttlMinutes = 60)
     {
         var payload = new TenantCtx
         {
             tid = tenantId,
+            entity = entity,
+            ip = clientIp,
             exp = DateTimeOffset.UtcNow.AddMinutes(ttlMinutes).ToUnixTimeSeconds(),
             kid = "tenantctx_hmac_key"
         };

@@ -70,6 +70,18 @@ namespace LambdaEdgeAuth
             }
         };
 
+        if (!string.IsNullOrEmpty(payload.Entity))
+        {
+            request.Headers["x-entity"] = new List<CloudFrontHeader>
+            {
+                new CloudFrontHeader
+                {
+                    Key = "X-Entity",
+                    Value = payload.Entity
+                }
+            };
+        }
+
         return null;
     }
 
@@ -136,6 +148,7 @@ namespace LambdaEdgeAuth
         private class TenantPayload
         {
             public string Tid { get; set; }
+            public string Entity { get; set; }
             public long Exp { get; set; }
         }
     }

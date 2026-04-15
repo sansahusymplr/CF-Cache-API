@@ -19,22 +19,32 @@ Multi-tenant .NET 8 API with CloudFront caching support, deployed on AWS EC2.
 
 ## API Endpoints
 
-### Authentication
-- `POST /api/auth/login` - User login (sets TenantCtx cookie)
-- `POST /api/auth/logout` - User logout (deletes TenantCtx cookie)
-- `GET /api/auth/users` - Get all users
+### Health Check
+- `GET /api/health` - Health check endpoint
 
-### Employee Management (Requires X-Tenant-Id header)
-- `GET /api/employee` - Get all employees (paginated, 200/page)
-- `GET /api/employee/{id}` - Get employee by ID
-- `GET /api/employee/search` - Search employees (firstName, lastName, companyName, position, department)
-- `GET /api/employee/by-firstname` - Search by first name
-- `GET /api/employee/by-lastname` - Search by last name
-- `GET /api/employee/by-company` - Search by company
-- `GET /api/employee/by-position` - Search by position
-- `GET /api/employee/{tenantId}/by-department` - Search by department with tenantId in path
-- `POST /api/employee` - Add new employee
-- `PUT /api/employee/{id}` - Update employee (auto-invalidates CloudFront cache)
+### Authentication
+- `GET /api/auth/search/users` - Get all users
+- `POST /api/auth/upsert/login` - User login (sets TenantCtx cookie)
+- `POST /api/auth/upsert/logout` - User logout (deletes TenantCtx cookie)
+
+### Employee Management (X-Tenant-Id header injected by Lambda@Edge)
+- `GET /api/employee/search/{tenantId}` - Get all employees (paginated, 200/page)
+- `GET /api/employee/search/{tenantId}/{id}` - Get employee by ID
+- `GET /api/employee/search/{tenantId}/search` - Search employees (firstName, lastName, companyName, position, department)
+- `GET /api/employee/search/{tenantId}/by-firstname` - Search by first name
+- `GET /api/employee/search/{tenantId}/by-lastname` - Search by last name
+- `GET /api/employee/search/{tenantId}/by-company` - Search by company
+- `GET /api/employee/search/{tenantId}/by-position` - Search by position
+- `GET /api/employee/search/{tenantId}/by-department` - Search by department
+- `POST /api/employee/upsert` - Add new employee
+- `PUT /api/employee/upsert/{id}` - Update employee (auto-invalidates CloudFront cache)
+- `DELETE /api/employee/upsert/{id}` - Delete employee (auto-invalidates CloudFront cache)
+
+### Image Management (X-Tenant-Id header injected by Lambda@Edge)
+- `POST /api/image/upsert/upload` - Upload image (multipart/form-data)
+- `GET /api/image/search/{tenantId}` - Get all images metadata
+- `GET /api/image/search/{tenantId}/{id}` - Get image file by ID
+- `DELETE /api/image/upsert/{id}` - Delete image
 
 ## User Credentials
 
@@ -131,17 +141,28 @@ After making code changes:
 
 1. **Publish and package**
 ```bash
+cd CF-Cache-API
 dotnet publish -c Release -r linux-x64 --self-contained false -o ./publish
 cd publish
 tar -czf ../deploy.tar.gz *
 cd ..
 ```
 
-2. **Deploy to EC2**
+2. **Deploy to us-east-2 EC2**
 ```bash
-scp -i C:\Users\sansahu\Downloads\sansahu-pdm-poc-payer-migration.pem deploy.tar.gz ec2-user@3.135.65.0:/tmp/
-ssh -i C:\Users\sansahu\Downloads\sansahu-pdm-poc-payer-migration.pem ec2-user@3.135.65.0 "cd /var/www/cf-cache-api && tar -xzf /tmp/deploy.tar.gz && sudo systemctl restart cf-cache-api"
+scp -i C:\Users\sansahu\Downloads\sansahu-pdm-poc-payer-migration.pem deploy.tar.gz ec2-user@ec2-18-119-100-53.us-east-2.compute.amazonaws.com:/tmp/
+ssh -i C:\Users\sansahu\Downloads\sansahu-pdm-poc-payer-migration.pem ec2-user@ec2-18-119-100-53.us-east-2.compute.amazonaws.com "cd /var/www/cf-cache-api && sudo tar -xzf /tmp/deploy.tar.gz && sudo systemctl restart cf-cache-api"
 ```
+
+3. **Deploy to us-west-2 EC2**
+```bash
+scp -i C:\Users\sansahu\Downloads\sansahu-pdm-poc-payer-migration-origin2.pem deploy.tar.gz ec2-user@16.146.108.64:/tmp/
+ssh -i C:\Users\sansahu\Downloads\sansahu-pdm-poc-payer-migration-origin2.pem ec2-user@16.146.108.64 "cd /var/www/cf-cache-api && sudo tar -xzf /tmp/deploy.tar.gz && sudo systemctl restart cf-cache-api"
+```
+
+**Active EC2 Instances**:
+- us-east-2: ec2-18-119-100-53.us-east-2.compute.amazonaws.com (18.119.100.53)
+- us-west-2: 16.146.108.64
 
 **Note**: Always deploy the complete publish folder to ensure all dependencies are included.
 
