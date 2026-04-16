@@ -1,0 +1,15 @@
+c:\Users\sansahu\source\POC\CF-Cache-API\decrypt-test\bin\Debug\net10.0\decrypt-test.exe
+c:\Users\sansahu\source\POC\CF-Cache-API\decrypt-test\bin\Debug\net10.0\decrypt-test.deps.json
+c:\Users\sansahu\source\POC\CF-Cache-API\decrypt-test\bin\Debug\net10.0\decrypt-test.runtimeconfig.json
+c:\Users\sansahu\source\POC\CF-Cache-API\decrypt-test\bin\Debug\net10.0\decrypt-test.dll
+c:\Users\sansahu\source\POC\CF-Cache-API\decrypt-test\bin\Debug\net10.0\decrypt-test.pdb
+c:\Users\sansahu\source\POC\CF-Cache-API\decrypt-test\obj\Debug\net10.0\decrypt-test.GeneratedMSBuildEditorConfig.editorconfig
+c:\Users\sansahu\source\POC\CF-Cache-API\decrypt-test\obj\Debug\net10.0\decrypt-test.AssemblyInfoInputs.cache
+c:\Users\sansahu\source\POC\CF-Cache-API\decrypt-test\obj\Debug\net10.0\decrypt-test.AssemblyInfo.cs
+c:\Users\sansahu\source\POC\CF-Cache-API\decrypt-test\obj\Debug\net10.0\decrypt-test.csproj.CoreCompileInputs.cache
+c:\Users\sansahu\source\POC\CF-Cache-API\decrypt-test\obj\Debug\net10.0\decrypt-test.sourcelink.json
+c:\Users\sansahu\source\POC\CF-Cache-API\decrypt-test\obj\Debug\net10.0\decrypt-test.dll
+c:\Users\sansahu\source\POC\CF-Cache-API\decrypt-test\obj\Debug\net10.0\refint\decrypt-test.dll
+c:\Users\sansahu\source\POC\CF-Cache-API\decrypt-test\obj\Debug\net10.0\decrypt-test.pdb
+c:\Users\sansahu\source\POC\CF-Cache-API\decrypt-test\obj\Debug\net10.0\decrypt-test.genruntimeconfig.cache
+c:\Users\sansahu\source\POC\CF-Cache-API\decrypt-test\obj\Debug\net10.0\ref\decrypt-test.dll

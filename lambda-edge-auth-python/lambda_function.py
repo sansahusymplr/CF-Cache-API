@@ -63,12 +63,17 @@ def handler(event, context):
     if not payload or not payload.get("tid"):
         return deny(401, "Invalid TenantCtx")
 
-    # Validate encrypted IP against client's X-Forwarded-For
+    # Validate encrypted IP against viewer's real IP
     encrypted_ip = payload.get("ip", "")
     if encrypted_ip:
-        client_ip = get_client_ip(headers)
+        client_ip = get_client_ip(event, headers)
         decrypted_ip = decrypt_ip(encrypted_ip, secret_bytes)
-        if decrypted_ip and client_ip and decrypted_ip != client_ip:
+        if not decrypted_ip:
+            return deny(401, "IP Decrypt Failed")
+        if not client_ip:
+            return deny(401, "No Client IP")
+        if decrypted_ip != client_ip:
+            print(f"IP Mismatch: cookie={decrypted_ip}, client={client_ip}")
             return deny(401, "IP Mismatch")
 
     tenant_id = str(payload["tid"])
@@ -87,15 +92,25 @@ def handler(event, context):
     return request
 
 
-def get_client_ip(headers):
-    """Extract the first (original client) IP from X-Forwarded-For header."""
+def get_client_ip(event, headers):
+    """Get real client IP. At viewer-request stage, use clientIp from the event
+    since CloudFront hasn't set X-Forwarded-For yet."""
+    # 1. Best source: CloudFront viewer-request provides clientIp directly
+    try:
+        client_ip = event["Records"][0]["cf"]["request"]["clientIp"]
+        if client_ip:
+            return client_ip
+    except (KeyError, IndexError):
+        pass
+
+    # 2. Fallback: X-Forwarded-For (for origin-request trigger)
     xff = headers.get("x-forwarded-for")
-    if not xff:
-        return ""
-    value = xff[0].get("value", "")
-    if not value:
-        return ""
-    return value.split(",")[0].strip()
+    if xff:
+        value = xff[0].get("value", "")
+        if value:
+            return value.split(",")[0].strip()
+
+    return ""
 
 
 def decrypt_ip(encrypted_ip, hmac_key):
