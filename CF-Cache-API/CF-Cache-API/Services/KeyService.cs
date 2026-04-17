@@ -7,7 +7,7 @@ namespace CF_Cache_API.Services;
 
 public class KeyService
 {
-    private const string TableName = "poc-payer-migration";
+    private const string TableName = "poc-aws-migration-payer";
     private readonly AmazonDynamoDBClient _dynamo;
     private readonly AmazonKeyManagementServiceClient _kms;
 
@@ -19,7 +19,6 @@ public class KeyService
 
     public async Task<(string kid, byte[] key)> GenerateAndStoreKeyAsync(string email)
     {
-        // Generate 32-byte random key via KMS
         var kmsResponse = await _kms.GenerateRandomAsync(new GenerateRandomRequest
         {
             NumberOfBytes = 32
@@ -29,15 +28,14 @@ public class KeyService
 
         var kid = Guid.NewGuid().ToString();
 
-        // Store in DynamoDB: email + kid + SecretKey
         await _dynamo.PutItemAsync(new PutItemRequest
         {
             TableName = TableName,
             Item = new Dictionary<string, AttributeValue>
             {
-                ["email"] = new AttributeValue { S = email },
                 ["kid"] = new AttributeValue { S = kid },
                 ["SecretKey"] = new AttributeValue { S = keyBase64 },
+                ["email"] = new AttributeValue { S = email },
                 ["createdAt"] = new AttributeValue { N = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString() }
             }
         });
@@ -45,14 +43,13 @@ public class KeyService
         return (kid, keyBytes);
     }
 
-    public async Task<byte[]?> GetKeyAsync(string email, string kid)
+    public async Task<byte[]?> GetKeyAsync(string kid)
     {
         var response = await _dynamo.GetItemAsync(new GetItemRequest
         {
             TableName = TableName,
             Key = new Dictionary<string, AttributeValue>
             {
-                ["email"] = new AttributeValue { S = email },
                 ["kid"] = new AttributeValue { S = kid }
             }
         });

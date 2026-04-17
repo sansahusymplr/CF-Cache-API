@@ -7,9 +7,13 @@ import time
 from urllib.parse import unquote
 
 # -------- Config --------
-SECRET_ID = "pdm-poc-payer-migration"   # or full ARN
-SECRET_KEY_NAME = "tenantctx_hmac_key"
-SECRETS_REGION = "us-east-2"
+DYNAMODB_TABLE = "poc-aws-migration-payer"
+DYNAMODB_REGION = "us-east-1"  # Lambda@Edge deploys from us-east-1, global table replica available here
+
+# # Secrets Manager (commented out — now using per-user keys from DynamoDB)
+# SECRET_ID = "pdm-poc-payer-migration"
+# SECRET_KEY_NAME = "tenantctx_hmac_key"
+# SECRETS_REGION = "us-east-2"
 
 EXCLUDE_PREFIXES = [
     "/api/employee/health",
@@ -21,10 +25,9 @@ COOKIE_NAME = "TenantCtx"
 TENANT_HEADER_KEY = "X-Tenant-Id"
 ENTITY_HEADER_KEY = "X-Entity"
 
-# -------- Secret cache (global, reused across invocations) --------
-_HMAC_BYTES = None
-_HMAC_LOADED_AT = 0
-_HMAC_CACHE_TTL_SECONDS = 300
+# -------- Key cache (global, reused across invocations) --------
+_KEY_CACHE = {}  # kid -> (key_bytes, cached_at)
+_KEY_CACHE_TTL_SECONDS = 300
 
 
 def handler(event, context):
@@ -54,27 +57,39 @@ def handler(event, context):
     if not token:
         return request
 
+    # First decode payload to get kid and email (tid) for DynamoDB lookup
+    payload_preview = peek_payload(token)
+    if not payload_preview or not payload_preview.get("kid") or not payload_preview.get("tid"):
+        return deny(401, "Invalid TenantCtx")
+
+    kid = payload_preview["kid"]
+
+    # Lookup per-user signing key from DynamoDB using kid
     try:
-        secret_bytes = get_hmac_key_bytes()
-    except Exception:
-        return deny(500, "Unable to load TenantCtx secret")
+        secret_bytes = get_key_from_dynamo(kid)
+    except Exception as e:
+        print(f"DynamoDB key lookup failed: {e}")
+        return deny(500, "Unable to load signing key")
+
+    if not secret_bytes:
+        return deny(401, "Unknown signing key")
 
     payload = verify_tenant_ctx(token, secret_bytes)
     if not payload or not payload.get("tid"):
         return deny(401, "Invalid TenantCtx")
 
-    # Validate encrypted IP against viewer's real IP
-    encrypted_ip = payload.get("ip", "")
-    if encrypted_ip:
-        client_ip = get_client_ip(event, headers)
-        decrypted_ip = decrypt_ip(encrypted_ip, secret_bytes)
-        if not decrypted_ip:
-            return deny(401, "IP Decrypt Failed")
-        if not client_ip:
-            return deny(401, "No Client IP")
-        if decrypted_ip != client_ip:
-            print(f"IP Mismatch: cookie={decrypted_ip}, client={client_ip}")
-            return deny(401, "IP Mismatch")
+    # # IP validation (commented out)
+    # encrypted_ip = payload.get("ip", "")
+    # if encrypted_ip:
+    #     client_ip = get_client_ip(event, headers)
+    #     decrypted_ip = decrypt_ip(encrypted_ip, secret_bytes)
+    #     if not decrypted_ip:
+    #         return deny(401, "IP Decrypt Failed")
+    #     if not client_ip:
+    #         return deny(401, "No Client IP")
+    #     if decrypted_ip != client_ip:
+    #         print(f"IP Mismatch: cookie={decrypted_ip}, client={client_ip}")
+    #         return deny(401, "IP Mismatch")
 
     tenant_id = str(payload["tid"])
     entity = str(payload.get("entity", ""))
@@ -92,45 +107,100 @@ def handler(event, context):
     return request
 
 
-def get_client_ip(event, headers):
-    """Get real client IP. At viewer-request stage, use clientIp from the event
-    since CloudFront hasn't set X-Forwarded-For yet."""
-    # 1. Best source: CloudFront viewer-request provides clientIp directly
+def peek_payload(token):
+    """Decode payload without verifying signature, to extract kid for key lookup."""
     try:
-        client_ip = event["Records"][0]["cf"]["request"]["clientIp"]
-        if client_ip:
-            return client_ip
-    except (KeyError, IndexError):
-        pass
-
-    # 2. Fallback: X-Forwarded-For (for origin-request trigger)
-    xff = headers.get("x-forwarded-for")
-    if xff:
-        value = xff[0].get("value", "")
-        if value:
-            return value.split(",")[0].strip()
-
-    return ""
-
-
-def decrypt_ip(encrypted_ip, hmac_key):
-    """Decrypt HMAC-XOR encrypted IP using only built-in libraries.
-    Format: base64url(nonce_16bytes + xor_cipher)
-    Keystream: HMAC-SHA256(hmac_key, nonce) → 32 bytes
-    """
-    try:
-        combined = base64url_decode(encrypted_ip)
-        nonce = combined[:16]
-        cipher_bytes = combined[16:]
-
-        # Same keystream: HMAC-SHA256(key, nonce)
-        keystream = hmac.new(hmac_key, nonce, hashlib.sha256).digest()
-
-        # XOR to recover plaintext
-        plain = bytes(c ^ keystream[i % len(keystream)] for i, c in enumerate(cipher_bytes))
-        return plain.decode("utf-8")
+        parts = token.split(".")
+        if len(parts) != 2:
+            return None
+        payload_json = base64url_decode(parts[0]).decode("utf-8")
+        return json.loads(payload_json)
     except Exception:
-        return ""
+        return None
+
+
+def get_key_from_dynamo(kid):
+    """Lookup per-user signing key from DynamoDB by kid (GUID). Cached by kid."""
+    global _KEY_CACHE
+
+    now = int(time.time())
+    if kid in _KEY_CACHE:
+        key_bytes, cached_at = _KEY_CACHE[kid]
+        if (now - cached_at) < _KEY_CACHE_TTL_SECONDS:
+            return key_bytes
+
+    dynamo = boto3.client("dynamodb", region_name=DYNAMODB_REGION)
+    resp = dynamo.get_item(
+        TableName=DYNAMODB_TABLE,
+        Key={
+            "kid": {"S": kid}
+        }
+    )
+
+    item = resp.get("Item")
+    if not item or "SecretKey" not in item:
+        return None
+
+    key_bytes = base64.b64decode(item["SecretKey"]["S"])
+    _KEY_CACHE[kid] = (key_bytes, now)
+    return key_bytes
+
+
+# # Secrets Manager lookup (commented out — replaced by DynamoDB)
+# def get_hmac_key_bytes():
+#     global _HMAC_BYTES, _HMAC_LOADED_AT
+#     now = int(time.time())
+#     if _HMAC_BYTES and (now - _HMAC_LOADED_AT) < _HMAC_CACHE_TTL_SECONDS:
+#         return _HMAC_BYTES
+#     sm = boto3.client("secretsmanager", region_name=SECRETS_REGION)
+#     resp = sm.get_secret_value(SecretId=SECRET_ID)
+#     secret_str = resp.get("SecretString")
+#     if secret_str:
+#         obj = json.loads(secret_str)
+#         b64_key = obj.get(SECRET_KEY_NAME)
+#         if not b64_key:
+#             raise ValueError(f"Secret key '{SECRET_KEY_NAME}' not found")
+#     else:
+#         secret_bin = resp.get("SecretBinary")
+#         if not secret_bin:
+#             raise ValueError("SecretString and SecretBinary both missing")
+#         obj = json.loads(base64.b64decode(secret_bin).decode("utf-8"))
+#         b64_key = obj.get(SECRET_KEY_NAME)
+#         if not b64_key:
+#             raise ValueError(f"Secret key '{SECRET_KEY_NAME}' not found")
+#     secret_bytes = base64.b64decode(b64_key)
+#     _HMAC_BYTES = secret_bytes
+#     _HMAC_LOADED_AT = now
+#     return secret_bytes
+
+
+# # IP decryption (commented out)
+# def decrypt_ip(encrypted_ip, hmac_key):
+#     try:
+#         combined = base64url_decode(encrypted_ip)
+#         nonce = combined[:16]
+#         cipher_bytes = combined[16:]
+#         keystream = hmac.new(hmac_key, nonce, hashlib.sha256).digest()
+#         plain = bytes(c ^ keystream[i % len(keystream)] for i, c in enumerate(cipher_bytes))
+#         return plain.decode("utf-8")
+#     except Exception:
+#         return ""
+
+
+# # Client IP extraction (commented out)
+# def get_client_ip(event, headers):
+#     try:
+#         client_ip = event["Records"][0]["cf"]["request"]["clientIp"]
+#         if client_ip:
+#             return client_ip
+#     except (KeyError, IndexError):
+#         pass
+#     xff = headers.get("x-forwarded-for")
+#     if xff:
+#         value = xff[0].get("value", "")
+#         if value:
+#             return value.split(",")[0].strip()
+#     return ""
 
 
 def replace_tenant_placeholder_anywhere(uri: str, tenant_id: str) -> str:
@@ -173,37 +243,6 @@ def is_tenant_placeholder(value: str) -> bool:
             return True
 
     return False
-
-
-def get_hmac_key_bytes():
-    global _HMAC_BYTES, _HMAC_LOADED_AT
-
-    now = int(time.time())
-    if _HMAC_BYTES and (now - _HMAC_LOADED_AT) < _HMAC_CACHE_TTL_SECONDS:
-        return _HMAC_BYTES
-
-    sm = boto3.client("secretsmanager", region_name=SECRETS_REGION)
-    resp = sm.get_secret_value(SecretId=SECRET_ID)
-
-    secret_str = resp.get("SecretString")
-    if secret_str:
-        obj = json.loads(secret_str)
-        b64_key = obj.get(SECRET_KEY_NAME)
-        if not b64_key:
-            raise ValueError(f"Secret key '{SECRET_KEY_NAME}' not found in SecretString JSON")
-    else:
-        secret_bin = resp.get("SecretBinary")
-        if not secret_bin:
-            raise ValueError("SecretString and SecretBinary both missing")
-        obj = json.loads(base64.b64decode(secret_bin).decode("utf-8"))
-        b64_key = obj.get(SECRET_KEY_NAME)
-        if not b64_key:
-            raise ValueError(f"Secret key '{SECRET_KEY_NAME}' not found in SecretBinary JSON")
-
-    secret_bytes = base64.b64decode(b64_key)
-    _HMAC_BYTES = secret_bytes
-    _HMAC_LOADED_AT = now
-    return secret_bytes
 
 
 def verify_tenant_ctx(token, secret_bytes):
