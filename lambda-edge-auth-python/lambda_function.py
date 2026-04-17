@@ -27,7 +27,7 @@ ENTITY_HEADER_KEY = "X-Entity"
 
 # -------- Key cache (global, reused across invocations) --------
 _KEY_CACHE = {}  # kid -> (key_bytes, cached_at)
-_KEY_CACHE_TTL_SECONDS = 300
+_KEY_CACHE_TTL_SECONDS = 30
 
 
 def handler(event, context):

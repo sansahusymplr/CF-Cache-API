@@ -59,4 +59,16 @@ public class KeyService
 
         return Convert.FromBase64String(response.Item["SecretKey"].S);
     }
+
+    public async Task DeleteKeyAsync(string kid)
+    {
+        await _dynamo.DeleteItemAsync(new DeleteItemRequest
+        {
+            TableName = TableName,
+            Key = new Dictionary<string, AttributeValue>
+            {
+                ["kid"] = new AttributeValue { S = kid }
+            }
+        });
+    }
 }

@@ -64,8 +64,29 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("upsert/logout")]
-    public IActionResult Logout()
+    public async Task<IActionResult> Logout()
     {
+        // Extract kid from cookie before deleting it
+        var cookie = Request.Cookies["TenantCtx"];
+        if (!string.IsNullOrEmpty(cookie))
+        {
+            try
+            {
+                var parts = cookie.Split('.');
+                if (parts.Length == 2)
+                {
+                    var payloadJson = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(
+                        parts[0].Replace('-', '+').Replace('_', '/').PadRight(parts[0].Length + (4 - parts[0].Length % 4) % 4, '=')));
+                    var payload = System.Text.Json.JsonSerializer.Deserialize<Models.TenantCtx>(payloadJson);
+                    if (payload != null && !string.IsNullOrEmpty(payload.kid))
+                    {
+                        await _keyService.DeleteKeyAsync(payload.kid);
+                    }
+                }
+            }
+            catch { /* cookie may be invalid, just proceed with logout */ }
+        }
+
         var domain = Request.Host.Host;
         
         Response.Cookies.Delete("TenantCtx", new CookieOptions
