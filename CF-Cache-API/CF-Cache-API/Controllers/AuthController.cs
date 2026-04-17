@@ -10,12 +10,14 @@ public class AuthController : ControllerBase
     private readonly UserService _userService;
     private readonly TenantCtxService _tenantCtxService;
     private readonly UserEntityService _userEntityService;
+    private readonly KeyService _keyService;
 
-    public AuthController(UserService userService, TenantCtxService tenantCtxService, UserEntityService userEntityService)
+    public AuthController(UserService userService, TenantCtxService tenantCtxService, UserEntityService userEntityService, KeyService keyService)
     {
         _userService = userService;
         _tenantCtxService = tenantCtxService;
         _userEntityService = userEntityService;
+        _keyService = keyService;
     }
 
     [HttpPost("upsert/login")]
@@ -31,11 +33,14 @@ public class AuthController : ControllerBase
         // Lookup entities from user-entity mapping
         var entities = _userEntityService.GetEntityNamesForUser(user.Email);
 
-        // Mint signed TenantCtx cookie with all user entities and client IP
+        // Generate per-user signing key via KMS and store in DynamoDB
+        var (kid, signingKey) = await _keyService.GenerateAndStoreKeyAsync(user.Email);
+
+        // Mint signed TenantCtx cookie with per-user key
         var entityCsv = string.Join(",", entities);
-        var clientIp = Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',')[0].Trim()
-                       ?? HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
-        var tenantCtxValue = await _tenantCtxService.MintTenantCtxAsync(user.TenantId, entityCsv, clientIp, ttlMinutes: 60);
+        // var clientIp = Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',')[0].Trim()
+        //                ?? HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
+        var tenantCtxValue = _tenantCtxService.MintTenantCtx(user.TenantId, signingKey, kid, entityCsv, ttlMinutes: 60);
         
         var domain = Request.Host.Host;
         

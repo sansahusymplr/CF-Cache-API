@@ -37,6 +37,7 @@ builder.Services.AddSingleton<SecretsService>();
 builder.Services.AddSingleton<TenantCtxService>();
 builder.Services.AddSingleton<CloudFrontService>();
 builder.Services.AddSingleton<ImageService>();
+builder.Services.AddSingleton<KeyService>();
 builder.Services.AddControllers();
 
 var app = builder.Build();
